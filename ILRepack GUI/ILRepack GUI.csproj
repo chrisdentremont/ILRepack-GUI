@@ -33,10 +33,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="Material.Icons.WPF" Version="2.1.10" />
-  </ItemGroup>
-
-  <ItemGroup>
     <Resource Include="Resources\folder_32x32.bmp" />
   </ItemGroup>
 

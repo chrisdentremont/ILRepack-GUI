@@ -3,7 +3,6 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-        xmlns:materialIcons="clr-namespace:Material.Icons.WPF;assembly=Material.Icons.WPF"
         xmlns:local="clr-namespace:ILRepack_GUI"
         mc:Ignorable="d"
         Title="ILRepack GUI" Height="700" MinHeight="700" Width="350" MinWidth="350" ResizeMode="CanResizeWithGrip" 
@@ -14,41 +13,46 @@
     </Window.Resources>
     <Grid>
         <Grid.RowDefinitions>
-            <RowDefinition Height="30" />
             <RowDefinition Height="100" />
             <RowDefinition Height="2*" />
             <RowDefinition Height="200" />
             <RowDefinition Height="50" />
         </Grid.RowDefinitions>
 
-        <StackPanel Grid.Row="0" HorizontalAlignment="Right" Margin="4">
+        <!--<StackPanel Grid.Row="0" HorizontalAlignment="Right" Margin="4">
             <Button Height="20" Width="20" Click="Info_Window_Button_Click">
-                <materialIcons:MaterialIcon Kind="QuestionMarkCircle" Foreground="Navy" />
+                <TextBlock Text="❓" Foreground="Navy"/>
             </Button>
-        </StackPanel>
+        </StackPanel>-->
 
-        <GroupBox Grid.Row="1" Header="Select the main assembly:" Margin="4">
-            <StackPanel Orientation="Horizontal" Margin="4">
-                <TextBox Name="Main_Assembly_Path_Textbox" Height="25" Width="200" VerticalContentAlignment="Center" 
-                         TextChanged="Main_Assembly_Path_Textbox_TextChanged"/>
-                <Button Name="Main_Assembly_Path_Button" Margin="4" Height="25" Width="75" Content="Select" Click="Main_Assembly_Path_Button_Click" />
-            </StackPanel>
+        <GroupBox Grid.Row="0" Header="Select/drop the main assembly:" Margin="4">
+            <Grid AllowDrop="True" Drop="Main_Assembly_File_Dropped" Background="Transparent">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="*" />
+                    <RowDefinition Height="35" />
+                </Grid.RowDefinitions>
+                <TextBlock Name="Main_Assembly_Text_Display" Text="Drag and drop a file here..." Grid.Row="0" Margin="4" HorizontalAlignment="Center" 
+                           VerticalAlignment="Center" FontWeight="Bold" />
+                <Button Name="Main_Assembly_Path_Button" Grid.Row="1" Margin="4" Height="25" Width="75" HorizontalAlignment="Right" VerticalAlignment="Bottom"
+                        Content="Select" Click="Main_Assembly_Path_Button_Click" />
+            </Grid>
         </GroupBox>
 
-        <GroupBox Grid.Row="2" Header="Select assemblies to merge:" Margin="4">
+        <GroupBox Grid.Row="1" Header="Select/drop assemblies to merge:" Margin="4">
             <Grid>
                 <Grid.RowDefinitions>
                     <RowDefinition Height="*" />
                     <RowDefinition Height="35" />
                 </Grid.RowDefinitions>
 
-                <ListView Name="Other_Assembly_ListView" Grid.Row="0" Margin="4">
+                <ListView Name="Other_Assembly_ListView" Grid.Row="0" AllowDrop="True" Background="Transparent" Drop="Other_Assembly_ListView_Dropped"
+                          Margin="4">
                     <ListView.ContextMenu>
                         <ContextMenu>
                             <MenuItem Name="Remove_Assemblies_MenuItem" Loaded="Remove_Assemblies_MenuItem_Loaded"
                                       Header="Delete" Click="Remove_Assemblies_Click">
                                 <MenuItem.Icon>
-                                    <materialIcons:MaterialIcon Kind="Delete" Foreground="Red" />
+                                    <TextBlock Text="✖" Foreground="IndianRed" FontWeight="Bold" />
                                 </MenuItem.Icon>
                             </MenuItem>
                         </ContextMenu>
@@ -80,7 +84,7 @@
             </Grid>
         </GroupBox>
 
-        <GroupBox Grid.Row="3" Header="Options" Margin="4">
+        <GroupBox Grid.Row="2" Header="Options" Margin="4">
             <StackPanel Orientation="Vertical">
                 <CheckBox Name="Settings_Check_Debug_File" ToolTip="Will generate a .pdb file along with the assembly."
                           Content="Include debug file" Margin="4" />
@@ -99,8 +103,16 @@
             </StackPanel>
         </GroupBox>
 
-        <StackPanel Grid.Row="4" Orientation="Horizontal" HorizontalAlignment="Right" Margin="4">
-            <Button Name="Merge_Button" Content="Merge" Height="25" Width="75" Click="Merge_Button_Click" Margin="4" />
-        </StackPanel>
+        <Grid Grid.Row="3" Margin="4">
+            <Button Name="Merge_Button" Content="Merge" Height="25" Width="75" HorizontalAlignment="Right" Click="Merge_Button_Click" Margin="4" />
+
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Left" Margin="4">
+                <TextBlock Text="Target kind:" VerticalAlignment="Center" Margin="4" />
+                <ComboBox Name="Target_Kind_Combobox" VerticalContentAlignment="Center" Height="25" Width="75" Margin="4">
+                    <ComboBoxItem Content="library" />
+                    <ComboBoxItem Content="exe" />
+                </ComboBox>
+            </StackPanel>
+        </Grid>
     </Grid>
 </Window>

@@ -9,6 +9,7 @@ using Microsoft.Win32;
 using System.Collections.ObjectModel;
 using System.Windows.Data;
 using System.Globalization;
+using System.Reflection;
 
 
 namespace ILRepack_GUI 
@@ -23,6 +24,8 @@ namespace ILRepack_GUI
         public ObservableCollection<Assembly_Binding> assemblyBindings;
 
         string keyfilePath;
+
+        public string targetKind;
 
         //TODO: Fix dependency assembly issue
         //TODO: Move help icon to bottom of window
@@ -39,6 +42,7 @@ namespace ILRepack_GUI
 
             Other_Assembly_ListView.ItemsSource = assemblyBindings;
 
+            Target_Kind_Combobox.SelectedIndex = 0;
 
             Merge_Button.IsEnabled = false;
         }
@@ -59,14 +63,43 @@ namespace ILRepack_GUI
             {
                 mainAssemblyPath = openFileDialog.FileName;
 
-                Main_Assembly_Path_Textbox.Text = openFileDialog.FileName;
+                Main_Assembly_Text_Display.Text = mainAssemblyPath.Substring(mainAssemblyPath.LastIndexOf('\\') + 1);
+
+                Merge_Button.IsEnabled = assemblyBindings.Count != 0 && mainAssemblyPath != "";
             }
         }
 
 
-        private void Main_Assembly_Path_Textbox_TextChanged(object sender, TextChangedEventArgs e)
+        private void Main_Assembly_File_Dropped(object sender, DragEventArgs e)
         {
-            Merge_Button.IsEnabled = Main_Assembly_Path_Textbox.Text != "";
+            if(e.Data.GetDataPresent(DataFormats.FileDrop))
+            {
+                string[] files = (string[])e.Data.GetData(DataFormats.FileDrop);
+
+                if(files.Length > 1)
+                {
+                    string text = "Only one file can be provided.";
+                    MessageBox.Show(text, "ILRepack GUI", MessageBoxButton.OK, MessageBoxImage.Error);
+                }
+                else
+                {
+                    string fileExt = files[0].Split('.').Last();
+
+                    if(fileExt == "dll" || fileExt == "exe")
+                    {
+                        mainAssemblyPath = files[0];
+
+                        Main_Assembly_Text_Display.Text = mainAssemblyPath.Substring(mainAssemblyPath.LastIndexOf('\\') + 1);
+                    }
+                    else
+                    {
+                        string text = "The file is not an assembly (.dll or .exe).";
+                        MessageBox.Show(text, "ILRepack GUI", MessageBoxButton.OK, MessageBoxImage.Error);
+                    }
+                }
+
+                Merge_Button.IsEnabled = assemblyBindings.Count != 0 && mainAssemblyPath != "";
+            }
         }
 
 
@@ -83,18 +116,100 @@ namespace ILRepack_GUI
 
             if(result == true)
             {
+                string invalidFiles = "";
                 foreach(string file in openFileDialog.FileNames)
                 {
-                    string fileName = file.Substring(file.LastIndexOf("\\") + 1);
-
-                    string fileSize = GetFileSize(File.ReadAllBytes(file));
-
-                    assemblyBindings.Add(new Assembly_Binding()
+                    if (file == mainAssemblyPath)
                     {
-                        Path = file,
-                        FileName = fileName,
-                        FileSize = fileSize
-                    });
+                        invalidFiles += file.Substring(file.LastIndexOf('\\') + 1) + " is already uploaded as the main assembly.\n";
+                    }
+                    else
+                    {
+                        bool fileExists = false;
+
+                        foreach (Assembly_Binding assembly in assemblyBindings)
+                        {
+                            if (assembly.FileName == file.Substring(file.LastIndexOf("\\") + 1))
+                            {
+                                fileExists = true;
+
+                                invalidFiles += $"{assembly.FileName} is already in the list.\n";
+                            }
+                        }
+
+                        if (!fileExists)
+                        {
+                            assemblyBindings.Add(new Assembly_Binding()
+                            {
+                                Path = file,
+                                FileName = file.Substring(file.LastIndexOf("\\") + 1),
+                                FileSize = GetFileSize(File.ReadAllBytes(file))
+                            });
+                        }
+                    }
+                }
+
+                if(invalidFiles != "")
+                {
+                    MessageBox.Show(invalidFiles, "ILRepack GUI", MessageBoxButton.OK, MessageBoxImage.Error);
+                }
+
+                Merge_Button.IsEnabled = assemblyBindings.Count != 0 && mainAssemblyPath != "";
+            }
+        }
+
+
+        private void Other_Assembly_ListView_Dropped(object sender, DragEventArgs e)
+        {
+            if(e.Data.GetDataPresent(DataFormats.FileDrop))
+            {
+                string[] files = (string[])e.Data.GetData(DataFormats.FileDrop);
+
+                string invalidFiles = "";
+                for(int i = 0; i < files.Length; i++)
+                {
+                    string fileExt = files[i].Split('.').Last();
+
+                    if(fileExt == "dll" || fileExt == "exe")
+                    {
+                        if (files[i] == mainAssemblyPath)
+                        {
+                            invalidFiles += files[i].Substring(files[i].LastIndexOf('\\') + 1) + " is already uploaded as the main assembly.\n";
+                        }
+                        else
+                        {
+                            bool fileExists = false;
+
+                            foreach (Assembly_Binding assembly in assemblyBindings)
+                            {
+                                if (assembly.FileName == files[i].Substring(files[i].LastIndexOf("\\") + 1))
+                                {
+                                    fileExists = true;
+
+                                    invalidFiles += $"{assembly.FileName} is already in the list.\n";
+                                }
+                            }
+
+                            if (!fileExists)
+                            {
+                                assemblyBindings.Add(new Assembly_Binding()
+                                {
+                                    Path = files[i],
+                                    FileName = files[i].Substring(files[i].LastIndexOf("\\") + 1),
+                                    FileSize = GetFileSize(File.ReadAllBytes(files[i]))
+                                });
+                            }
+                        }
+                    }
+                    else
+                    {
+                        invalidFiles += files[i].Substring(files[i].LastIndexOf('\\') + 1) + " is not a valid assembly.\n";
+                    }
+                }
+
+                if(invalidFiles != "")
+                {
+                    MessageBox.Show(invalidFiles, "ILRepack GUI", MessageBoxButton.OK, MessageBoxImage.Error);
                 }
 
                 Merge_Button.IsEnabled = assemblyBindings.Count != 0 && mainAssemblyPath != "";
@@ -111,19 +226,13 @@ namespace ILRepack_GUI
                 return;
             }
 
-            MergeSettings mergeSettings = new MergeSettings();
-            mergeSettings.ShowDialog();
-
-            if(mergeSettings.wasCancelled)
-            {
-                return;
-            }
+            targetKind = Target_Kind_Combobox.Text;
 
             string fileSaveLocation = "";
 
-            string saveDialogFilter = mergeSettings.targetKind == "library" ? "DLL (*.dll)|*.dll" : "EXE (*.exe)|*.exe";
-            string saveDialogExt = mergeSettings.targetKind == "library" ? ".dll" : ".exe";
-            string mainAssemblyFileName = Main_Assembly_Path_Textbox.Text.Substring(Main_Assembly_Path_Textbox.Text.LastIndexOf('\\') + 1);
+            string saveDialogFilter = targetKind == "library" ? "DLL (*.dll)|*.dll" : "EXE (*.exe)|*.exe";
+            string saveDialogExt = targetKind == "library" ? ".dll" : ".exe";
+            string mainAssemblyFileName = mainAssemblyPath.Substring(mainAssemblyPath.LastIndexOf('\\') + 1);
 
             //Get save location
             SaveFileDialog saveDialog = new SaveFileDialog()
@@ -149,7 +258,7 @@ namespace ILRepack_GUI
             string mergeArguments = $"/out:\"{fileSaveLocation}\"";
 
             //Target kind
-            mergeArguments += $" /target:\"{mergeSettings.targetKind}\"";
+            mergeArguments += $" /target:\"{targetKind}\"";
 
             //TODO: Figure out why this isn't working
             //Include debug file
@@ -239,7 +348,7 @@ namespace ILRepack_GUI
 
             Other_Assembly_ListView.ItemsSource = assemblyBindings;
 
-            Main_Assembly_Path_Textbox.Text = "";
+            Main_Assembly_Text_Display.Text = "";
 
             Settings_Check_Debug_File.IsChecked = false;
             Settings_Check_Merge_Types.IsChecked = false;
