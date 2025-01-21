@@ -158,7 +158,6 @@ namespace ILRepack_GUI
             }
         }
 
-
         private void Other_Assembly_ListView_Dropped(object sender, DragEventArgs e)
         {
             if(e.Data.GetDataPresent(DataFormats.FileDrop))
@@ -297,6 +296,9 @@ namespace ILRepack_GUI
                 mergeArguments += $" /keyfile:\"{keyfilePath}\"";
             }
 
+            //Add main assembly first
+            mergeArguments += $" \"{mainAssemblyPath}\"";
+
             foreach(Assembly_Binding assembly in assemblyBindings)
             {
                 mergeArguments += $" \"{assembly.Path}\""; 
@@ -304,6 +306,7 @@ namespace ILRepack_GUI
 
             #endregion Build Arguments
 
+            //File.WriteAllText(Environment.GetFolderPath(Environment.SpecialFolder.Desktop) + $"\\ILRepack Arguments.txt", $"ilrepack {mergeArguments}");
 
             Process mergeProcess = new Process()
             {
@@ -325,6 +328,8 @@ namespace ILRepack_GUI
 
             mergeProcess.WaitForExit();
 
+            bool hasError = false;
+
             if (!string.IsNullOrEmpty(err))
             {
                 Directory.CreateDirectory("crash-reports");
@@ -335,6 +340,8 @@ namespace ILRepack_GUI
 
                 string text = "Something went wrong while merging the assemblies! Check the crash report for details.";
                 MessageBox.Show(text, "ILRepack GUI", MessageBoxButton.OK, MessageBoxImage.Error);
+
+                hasError = true;
             }
             else
             {
@@ -344,19 +351,22 @@ namespace ILRepack_GUI
 
             #region Reset UI
 
-            assemblyBindings = new ObservableCollection<Assembly_Binding>();
+            if (!hasError)
+            {
+                assemblyBindings = new ObservableCollection<Assembly_Binding>();
 
-            Other_Assembly_ListView.ItemsSource = assemblyBindings;
+                Other_Assembly_ListView.ItemsSource = assemblyBindings;
 
-            Main_Assembly_Text_Display.Text = "";
+                Main_Assembly_Text_Display.Text = "Drag and drop a file here...";
 
-            Settings_Check_Debug_File.IsChecked = false;
-            Settings_Check_Merge_Types.IsChecked = false;
-            Settings_Check_XML_Doc.IsChecked = false;
-            Settings_Check_Rename_Int.IsChecked = false;
-            Settings_Check_Int_Ser.IsChecked = false;
-            Settings_Check_Parallel.IsChecked = false;
-            Settings_Check_Sign_Key.IsChecked = false;
+                Settings_Check_Debug_File.IsChecked = false;
+                Settings_Check_Merge_Types.IsChecked = false;
+                Settings_Check_XML_Doc.IsChecked = false;
+                Settings_Check_Rename_Int.IsChecked = false;
+                Settings_Check_Int_Ser.IsChecked = false;
+                Settings_Check_Parallel.IsChecked = false;
+                Settings_Check_Sign_Key.IsChecked = false;
+            }
 
             #endregion Reset UI
         }
