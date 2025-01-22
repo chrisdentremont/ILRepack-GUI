@@ -10,6 +10,27 @@
     <Window.Resources>
         <local:WidthConverterName x:Key="WidthConverterName"/>
         <local:WidthConverterSize x:Key="WidthConverterSize"/>
+
+        <Style x:Key="RoundButton" TargetType="{x:Type Button}">
+            <Setter Property="HorizontalAlignment" Value="Center" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+            <Setter Property="Padding" Value="1" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="{x:Type Button}">
+                        <Grid x:Name="grid">
+                            <Border x:Name="border" CornerRadius="8" BorderBrush="Transparent" BorderThickness="1" Background="Transparent">
+                                <ContentPresenter HorizontalAlignment="Center"
+                                          VerticalAlignment="Center"
+                                          TextElement.FontWeight="Bold">
+                                </ContentPresenter>
+                            </Border>
+
+                        </Grid>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
     </Window.Resources>
     <Grid>
         <Grid.RowDefinitions>
@@ -45,39 +66,33 @@
                     <RowDefinition Height="35" />
                 </Grid.RowDefinitions>
 
-                <ListView Name="Other_Assembly_ListView" Grid.Row="0" AllowDrop="True" Background="Transparent" Drop="Other_Assembly_ListView_Dropped"
+                <TreeView Name="Other_Assembly_TreeView" Grid.Row="0" AllowDrop="True" Background="Transparent" Drop="Other_Assembly_TreeView_Dropped"
                           Margin="4">
-                    <ListView.ContextMenu>
-                        <ContextMenu>
-                            <MenuItem Name="Remove_Assemblies_MenuItem" Loaded="Remove_Assemblies_MenuItem_Loaded"
-                                      Header="Delete" Click="Remove_Assemblies_Click">
-                                <MenuItem.Icon>
-                                    <TextBlock Text="✖" Foreground="IndianRed" FontWeight="Bold" />
-                                </MenuItem.Icon>
-                            </MenuItem>
-                        </ContextMenu>
-                    </ListView.ContextMenu>
-                    <ListView.View>
-                        <GridView>
-                            <GridViewColumn Header="Name" Width="{Binding ActualWidth, RelativeSource={RelativeSource AncestorType=ListView}, 
-                                Converter={StaticResource WidthConverterName}, ConverterParameter=2}">
-                                <GridViewColumn.CellTemplate>
-                                    <DataTemplate>
-                                        <TextBlock Text="{Binding Path=FileName}" />
-                                    </DataTemplate>
-                                </GridViewColumn.CellTemplate> 
-                            </GridViewColumn>
-                            <GridViewColumn Header="Size" Width="{Binding ActualWidth, RelativeSource={RelativeSource AncestorType=ListView}, 
-                                Converter={StaticResource WidthConverterSize}, ConverterParameter=2}">
-                                <GridViewColumn.CellTemplate>
-                                    <DataTemplate>
-                                        <TextBlock Text="{Binding Path=FileSize}"/>
-                                    </DataTemplate>
-                                </GridViewColumn.CellTemplate>
-                            </GridViewColumn>
-                        </GridView>
-                    </ListView.View>
-                </ListView>
+                    <TreeView.ItemContainerStyle>
+                        <Style TargetType="TreeViewItem">
+                            <Setter Property="Focusable" Value="False" />
+                        </Style>
+                    </TreeView.ItemContainerStyle>
+                    <TreeView.ItemTemplate>
+                        <DataTemplate>
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="15" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+
+                                <Button Grid.Column="0" VerticalAlignment="Top" Style="{DynamicResource RoundButton}" Height="15" Width="15" 
+                                        Click="Remove_Assemblies_Click">
+                                    <TextBlock Text="⛔" Foreground="Black" FontSize="10" FontWeight="Bold" />
+                                </Button>
+
+                                <TreeViewItem Grid.Column="1" Header="{Binding Path=DisplayName}" ItemsSource="{Binding Path=Dependencies}" 
+                                              ToolTip="{Binding Path=ToolTip}" Foreground="{Binding Path=ForegroundColor}" Focusable="False">
+                                </TreeViewItem>
+                            </Grid>
+                        </DataTemplate>
+                    </TreeView.ItemTemplate>
+                </TreeView>
 
                 <Button Grid.Row="1" Height="25" Width="75" Margin="4" Content="Add" HorizontalAlignment="Right"
                         Click="Other_Files_Button_Click"/>

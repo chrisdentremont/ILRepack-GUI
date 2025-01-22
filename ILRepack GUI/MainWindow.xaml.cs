@@ -10,6 +10,8 @@ using System.Collections.ObjectModel;
 using System.Windows.Data;
 using System.Globalization;
 using System.Reflection;
+using System.IO.Enumeration;
+using System.Text;
 
 
 namespace ILRepack_GUI 
@@ -19,13 +21,15 @@ namespace ILRepack_GUI
     /// </summary>
     public partial class MainWindow : Window
     {
-        string mainAssemblyPath;
+        string mainAssemblyFile;
 
         public ObservableCollection<Assembly_Binding> assemblyBindings;
 
         string keyfilePath;
 
         public string targetKind;
+
+        public string tempFolderLocation;
 
         //TODO: Fix dependency assembly issue
         //TODO: Move help icon to bottom of window
@@ -34,19 +38,34 @@ namespace ILRepack_GUI
         {
             InitializeComponent();
 
-            mainAssemblyPath = "";
+            mainAssemblyFile = "";
 
             keyfilePath = "";
 
             assemblyBindings = new ObservableCollection<Assembly_Binding>();
 
-            Other_Assembly_ListView.ItemsSource = assemblyBindings;
+            Other_Assembly_TreeView.ItemsSource = assemblyBindings;
 
             Target_Kind_Combobox.SelectedIndex = 0;
 
             Merge_Button.IsEnabled = false;
+
+            tempFolderLocation = Directory.GetCurrentDirectory() + "\\ILRepack_GUI_temp";
+
+            AppDomain.CurrentDomain.ProcessExit += CurrentDomain_ProcessExit;
+
+
+            DeleteDirectory(tempFolderLocation);
+
+            DirectoryInfo info = Directory.CreateDirectory(tempFolderLocation);
+
+            info.Attributes = FileAttributes.Normal;
         }
 
+        private void CurrentDomain_ProcessExit(object? sender, EventArgs e)
+        {
+            DeleteDirectory(tempFolderLocation);
+        }
 
         private void Main_Assembly_Path_Button_Click(object sender, RoutedEventArgs e)
         {
@@ -61,35 +80,111 @@ namespace ILRepack_GUI
 
             if (result == true)
             {
-                mainAssemblyPath = openFileDialog.FileName;
+                string fileName = openFileDialog.FileName.Substring(openFileDialog.FileName.LastIndexOf('\\') + 1);
 
-                Main_Assembly_Text_Display.Text = mainAssemblyPath.Substring(mainAssemblyPath.LastIndexOf('\\') + 1);
+                bool assemblyInOther = false;
 
-                Merge_Button.IsEnabled = assemblyBindings.Count != 0 && mainAssemblyPath != "";
+                //Check if file is in other assemblies
+                foreach (Assembly_Binding assembly in assemblyBindings)
+                {
+                    if (fileName == assembly.FileName)
+                    {
+                        assemblyInOther = true;
+                    }
+                }
+
+                if (!assemblyInOther)
+                {
+                    mainAssemblyFile = fileName;
+
+                    Main_Assembly_Text_Display.Text = fileName;
+
+                    using (FileStream stream = File.Create(tempFolderLocation + $"\\{fileName}"))
+                    {
+                        byte[] contents = File.ReadAllBytes(openFileDialog.FileName);
+
+                        stream.Write(contents, 0, contents.Length);
+                    }
+
+                    CheckMissingAssemblies();
+
+                    Main_Assembly_Text_Display.Text = mainAssemblyFile;
+
+                    //TODO: Change requirements for this
+                    Merge_Button.IsEnabled = assemblyBindings.Count != 0 && mainAssemblyFile != "";
+                }
+                else
+                {
+                    string text = "This assembly already exists in the list of other assemblies. Please delete it first if you want to " +
+                        "make it the main assembly.";
+                    MessageBox.Show(text, "ILRepack GUI", MessageBoxButton.OK, MessageBoxImage.Error);
+                }
             }
         }
 
 
         private void Main_Assembly_File_Dropped(object sender, DragEventArgs e)
         {
-            if(e.Data.GetDataPresent(DataFormats.FileDrop))
+            if (e.Data.GetDataPresent(DataFormats.FileDrop))
             {
                 string[] files = (string[])e.Data.GetData(DataFormats.FileDrop);
 
-                if(files.Length > 1)
+                if (files.Length > 1)
                 {
                     string text = "Only one file can be provided.";
                     MessageBox.Show(text, "ILRepack GUI", MessageBoxButton.OK, MessageBoxImage.Error);
                 }
                 else
                 {
+                    //Delete old temp file
+                    if (mainAssemblyFile != "")
+                    {
+                        string oldFileName = mainAssemblyFile;
+
+                        if (File.Exists(tempFolderLocation + $"\\{oldFileName}"))
+                        {
+                            File.Delete(tempFolderLocation + $"\\{oldFileName}");
+                        }
+                    }
+
                     string fileExt = files[0].Split('.').Last();
 
-                    if(fileExt == "dll" || fileExt == "exe")
+                    if (fileExt == "dll" || fileExt == "exe")
                     {
-                        mainAssemblyPath = files[0];
+                        string fileName = files[0].Substring(files[0].LastIndexOf('\\') + 1);
 
-                        Main_Assembly_Text_Display.Text = mainAssemblyPath.Substring(mainAssemblyPath.LastIndexOf('\\') + 1);
+                        bool assemblyInOther = false;
+
+                        //Check if file is in other assemblies
+                        foreach (Assembly_Binding assembly in assemblyBindings)
+                        {
+                            if (fileName == assembly.FileName)
+                            {
+                                assemblyInOther = true;
+                            }
+                        }
+
+                        if (!assemblyInOther)
+                        {
+                            mainAssemblyFile = fileName;
+
+                            Main_Assembly_Text_Display.Text = fileName;
+
+                            using (FileStream stream = File.Create(tempFolderLocation + $"\\{fileName}"))
+                            {
+                                byte[] contents = File.ReadAllBytes(files[0]);
+
+                                stream.Write(contents, 0, contents.Length);
+                            }
+
+                            CheckMissingAssemblies();
+                        }
+                        else
+                        {
+                            string text = "This assembly already exists in the list of other assemblies. Please delete it first if you want to " +
+                                "make it the main assembly.";
+                            MessageBox.Show(text, "ILRepack GUI", MessageBoxButton.OK, MessageBoxImage.Error);
+                        }
                     }
                     else
                     {
@@ -98,7 +193,7 @@ namespace ILRepack_GUI
                     }
                 }
 
-                Merge_Button.IsEnabled = assemblyBindings.Count != 0 && mainAssemblyPath != "";
+                Merge_Button.IsEnabled = assemblyBindings.Count != 0 && mainAssemblyFile != "";
             }
         }
 
@@ -119,32 +214,45 @@ namespace ILRepack_GUI
                 string invalidFiles = "";
                 foreach(string file in openFileDialog.FileNames)
                 {
-                    if (file == mainAssemblyPath)
+                    string fileName = file.Substring(file.LastIndexOf("\\") + 1);
+
+                    if (fileName == mainAssemblyFile)
                     {
-                        invalidFiles += file.Substring(file.LastIndexOf('\\') + 1) + " is already uploaded as the main assembly.\n";
+                        invalidFiles += fileName + " is already uploaded as the main assembly.\n";
                     }
                     else
                     {
-                        bool fileExists = false;
+                        bool fileAlreadyExists = false;
 
                         foreach (Assembly_Binding assembly in assemblyBindings)
                         {
-                            if (assembly.FileName == file.Substring(file.LastIndexOf("\\") + 1))
+                            if (assembly.FileName == fileName)
                             {
-                                fileExists = true;
+                                fileAlreadyExists = true;
 
                                 invalidFiles += $"{assembly.FileName} is already in the list.\n";
                             }
                         }
 
-                        if (!fileExists)
+                        if (!fileAlreadyExists)
                         {
+                            string newFileLocation = tempFolderLocation + $"\\{fileName}";
+
                             assemblyBindings.Add(new Assembly_Binding()
                             {
-                                Path = file,
-                                FileName = file.Substring(file.LastIndexOf("\\") + 1),
-                                FileSize = GetFileSize(File.ReadAllBytes(file))
+                                Path = newFileLocation,
+                                FileName = fileName,
+                                FileSize = GetFileSize(File.ReadAllBytes(file)),
                             });
+
+                            using (FileStream stream = File.Create(newFileLocation))
+                            {
+                                byte[] contents = File.ReadAllBytes(file);
+
+                                stream.Write(contents, 0, contents.Length);
+                            }
+
+                            CheckMissingAssemblies();
                         }
                     }
                 }
@@ -154,11 +262,11 @@ namespace ILRepack_GUI
                     MessageBox.Show(invalidFiles, "ILRepack GUI", MessageBoxButton.OK, MessageBoxImage.Error);
                 }
 
-                Merge_Button.IsEnabled = assemblyBindings.Count != 0 && mainAssemblyPath != "";
+                Merge_Button.IsEnabled = assemblyBindings.Count != 0 && mainAssemblyFile != "";
             }
         }
 
-        private void Other_Assembly_ListView_Dropped(object sender, DragEventArgs e)
+        private void Other_Assembly_TreeView_Dropped(object sender, DragEventArgs e)
         {
             if(e.Data.GetDataPresent(DataFormats.FileDrop))
             {
@@ -171,32 +279,45 @@ namespace ILRepack_GUI
 
                     if(fileExt == "dll" || fileExt == "exe")
                     {
-                        if (files[i] == mainAssemblyPath)
+                        string fileName = files[i].Substring(files[i].LastIndexOf('\\') + 1);
+
+                        if (fileName == mainAssemblyFile)
                         {
-                            invalidFiles += files[i].Substring(files[i].LastIndexOf('\\') + 1) + " is already uploaded as the main assembly.\n";
+                            invalidFiles += fileName + " is already uploaded as the main assembly.\n";
                         }
                         else
                         {
-                            bool fileExists = false;
+                            bool fileAlreadyExists = false;
 
                             foreach (Assembly_Binding assembly in assemblyBindings)
                             {
-                                if (assembly.FileName == files[i].Substring(files[i].LastIndexOf("\\") + 1))
+                                if (assembly.FileName == fileName)
                                 {
-                                    fileExists = true;
+                                    fileAlreadyExists = true;
 
                                     invalidFiles += $"{assembly.FileName} is already in the list.\n";
                                 }
                             }
 
-                            if (!fileExists)
+                            if (!fileAlreadyExists)
                             {
+                                string newFileLocation = tempFolderLocation + $"\\{fileName}";
+
                                 assemblyBindings.Add(new Assembly_Binding()
                                 {
-                                    Path = files[i],
-                                    FileName = files[i].Substring(files[i].LastIndexOf("\\") + 1),
-                                    FileSize = GetFileSize(File.ReadAllBytes(files[i]))
+                                    Path = newFileLocation,
+                                    FileName = fileName,
+                                    FileSize = GetFileSize(File.ReadAllBytes(files[i])),
                                 });
+
+                                using (FileStream stream = File.Create(newFileLocation))
+                                {
+                                    byte[] contents = File.ReadAllBytes(files[i]);
+
+                                    stream.Write(contents, 0, contents.Length);
+                                }
+
+                                CheckMissingAssemblies();
                             }
                         }
                     }
@@ -211,8 +332,32 @@ namespace ILRepack_GUI
                     MessageBox.Show(invalidFiles, "ILRepack GUI", MessageBoxButton.OK, MessageBoxImage.Error);
                 }
 
-                Merge_Button.IsEnabled = assemblyBindings.Count != 0 && mainAssemblyPath != "";
+                //TODO: Change 
+                Merge_Button.IsEnabled = assemblyBindings.Count != 0 && mainAssemblyFile != "";
             }
+        }
+        
+
+        private void Remove_Assemblies_Click(object sender, RoutedEventArgs e)
+        {
+            Assembly_Binding? selectedBinding = ((Button)e.OriginalSource).DataContext as Assembly_Binding;
+
+            if(selectedBinding != null)
+            {
+                if (assemblyBindings.Contains(selectedBinding))
+                {
+                    assemblyBindings.Remove(selectedBinding);
+
+                    if (File.Exists(tempFolderLocation + $"\\{selectedBinding.FileName}"))
+                    {
+                        File.Delete(tempFolderLocation + $"\\{selectedBinding.FileName}");
+                    }
+                }
+            }
+
+            Other_Assembly_TreeView.ItemsSource = assemblyBindings;
+
+            CheckMissingAssemblies();
         }
 
 
@@ -231,7 +376,7 @@ namespace ILRepack_GUI
 
             string saveDialogFilter = targetKind == "library" ? "DLL (*.dll)|*.dll" : "EXE (*.exe)|*.exe";
             string saveDialogExt = targetKind == "library" ? ".dll" : ".exe";
-            string mainAssemblyFileName = mainAssemblyPath.Substring(mainAssemblyPath.LastIndexOf('\\') + 1);
+            string mainAssemblyFileName = mainAssemblyFile.Substring(mainAssemblyFile.LastIndexOf('\\') + 1);
 
             //Get save location
             SaveFileDialog saveDialog = new SaveFileDialog()
@@ -297,7 +442,7 @@ namespace ILRepack_GUI
             }
 
             //Add main assembly first
-            mergeArguments += $" \"{mainAssemblyPath}\"";
+            mergeArguments += $" \"{mainAssemblyFile}\"";
 
             foreach(Assembly_Binding assembly in assemblyBindings)
             {
@@ -317,7 +462,7 @@ namespace ILRepack_GUI
                     UseShellExecute = false,
                     RedirectStandardOutput = true,
                     RedirectStandardError = true,
-                    CreateNoWindow = true 
+                    CreateNoWindow = true,
                 }
             };
 
@@ -353,9 +498,23 @@ namespace ILRepack_GUI
 
             if (!hasError)
             {
+                //Empty temp folder
+                DirectoryInfo info = new DirectoryInfo(tempFolderLocation);
+
+                foreach(FileInfo file in info.GetFiles())
+                {
+                    file.Delete();
+                }
+
+                foreach(DirectoryInfo dir in info.GetDirectories())
+                {
+                    dir.Delete(true);
+                }
+
+
                 assemblyBindings = new ObservableCollection<Assembly_Binding>();
 
-                Other_Assembly_ListView.ItemsSource = assemblyBindings;
+                Other_Assembly_TreeView.ItemsSource = assemblyBindings;
 
                 Main_Assembly_Text_Display.Text = "Drag and drop a file here...";
 
@@ -371,38 +530,6 @@ namespace ILRepack_GUI
             #endregion Reset UI
         }
 
-        private void Remove_Assemblies_MenuItem_Loaded(object sender, RoutedEventArgs e)
-        {
-            if(Other_Assembly_ListView.SelectedItems.Count == 0)
-            {
-                Remove_Assemblies_MenuItem.IsEnabled = false;
-            }
-            else
-            {
-                Remove_Assemblies_MenuItem.IsEnabled = true;
-            }
-        }
-
-        private void Remove_Assemblies_Click(object sender, RoutedEventArgs e)
-        {
-            List<Assembly_Binding> selectedBindings = new List<Assembly_Binding>(); 
-
-            foreach(Assembly_Binding assembly in Other_Assembly_ListView.SelectedItems)
-            {
-                selectedBindings.Add(assembly);
-            }
-
-
-            foreach(Assembly_Binding assembly in selectedBindings)
-            {
-                if(assemblyBindings.Contains(assembly))
-                {
-                    assemblyBindings.Remove(assembly);
-                }
-            }
-
-            Other_Assembly_ListView.ItemsSource = assemblyBindings;
-        }
 
         private void Info_Window_Button_Click(object sender, RoutedEventArgs e)
         {
@@ -436,7 +563,7 @@ namespace ILRepack_GUI
             keyfilePath = "";
         }
 
-        public static string GetFileSize(byte[] contents)
+        public string GetFileSize(byte[] contents)
         {
             string[] sizes = { "B", "KB", "MB", "GB", "TB" };
             double len = contents.Length;
@@ -448,6 +575,15 @@ namespace ILRepack_GUI
             }
 
             return string.Format("{0:0.##} {1}", len, sizes[order]);
+        }
+
+
+        public void CheckMissingAssemblies()
+        {
+            foreach(Assembly_Binding binding in assemblyBindings)
+            {
+                binding.Dependencies = GetMissingAssemblies(binding.Path);
+            }
         }
     }
 
