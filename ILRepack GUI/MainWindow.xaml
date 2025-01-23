@@ -87,15 +87,21 @@
                                 </Button>
 
                                 <TreeViewItem Grid.Column="1" Header="{Binding Path=DisplayName}" ItemsSource="{Binding Path=Dependencies}" 
-                                              ToolTip="{Binding Path=ToolTip}" Foreground="{Binding Path=ForegroundColor}" Focusable="False">
+                                              Foreground="{Binding Path=ForegroundColor}" Focusable="False">
+                                    <TreeViewItem.ToolTip>
+                                        <TextBlock Text="{Binding Path=ToolTip}" />
+                                    </TreeViewItem.ToolTip>
                                 </TreeViewItem>
                             </Grid>
                         </DataTemplate>
                     </TreeView.ItemTemplate>
                 </TreeView>
 
-                <Button Grid.Row="1" Height="25" Width="75" Margin="4" Content="Add" HorizontalAlignment="Right"
+                <Button Grid.Row="1" Height="25" Width="75" Margin="4" Content="Add Files" HorizontalAlignment="Right"
                         Click="Other_Files_Button_Click"/>
+
+                <Button Grid.Row="1" Height="25" Width="120" Margin="4" Content="Add Resolve Paths" HorizontalAlignment="Left" 
+                        Click="Add_Resolve_Paths_Click" ToolTip="Add paths to use for dependency resolving."/>
             </Grid>
         </GroupBox>
 

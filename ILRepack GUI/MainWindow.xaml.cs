@@ -1,17 +1,14 @@
 ﻿using System.Diagnostics;
+using System.Collections.ObjectModel;
+using System.Globalization;
 using System.IO;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Data;
 
 using static ILRepack_GUI.Helpers;
 
 using Microsoft.Win32;
-using System.Collections.ObjectModel;
-using System.Windows.Data;
-using System.Globalization;
-using System.Reflection;
-using System.IO.Enumeration;
-using System.Text;
 
 
 namespace ILRepack_GUI 
@@ -31,6 +28,8 @@ namespace ILRepack_GUI
 
         public string tempFolderLocation;
 
+        public List<string> resolvePaths;
+
         //TODO: Fix dependency assembly issue
         //TODO: Move help icon to bottom of window
 
@@ -44,6 +43,8 @@ namespace ILRepack_GUI
 
             assemblyBindings = new ObservableCollection<Assembly_Binding>();
 
+            resolvePaths = new List<string>();
+
             Other_Assembly_TreeView.ItemsSource = assemblyBindings;
 
             Target_Kind_Combobox.SelectedIndex = 0;
@@ -55,7 +56,10 @@ namespace ILRepack_GUI
             AppDomain.CurrentDomain.ProcessExit += CurrentDomain_ProcessExit;
 
 
-            DeleteDirectory(tempFolderLocation);
+            if (Directory.Exists(tempFolderLocation))
+            {
+                Directory.Delete(tempFolderLocation, true);
+            }
 
             DirectoryInfo info = Directory.CreateDirectory(tempFolderLocation);
 
@@ -64,7 +68,10 @@ namespace ILRepack_GUI
 
         private void CurrentDomain_ProcessExit(object? sender, EventArgs e)
         {
-            DeleteDirectory(tempFolderLocation);
+            if (Directory.Exists(tempFolderLocation))
+            {
+                Directory.Delete(tempFolderLocation, true);
+            }
         }
 
         private void Main_Assembly_Path_Button_Click(object sender, RoutedEventArgs e)
@@ -240,6 +247,7 @@ namespace ILRepack_GUI
 
                             assemblyBindings.Add(new Assembly_Binding()
                             {
+                                OriginalPath = file,
                                 Path = newFileLocation,
                                 FileName = fileName,
                                 FileSize = GetFileSize(File.ReadAllBytes(file)),
@@ -305,6 +313,7 @@ namespace ILRepack_GUI
 
                                 assemblyBindings.Add(new Assembly_Binding()
                                 {
+                                    OriginalPath = files[i],
                                     Path = newFileLocation,
                                     FileName = fileName,
                                     FileSize = GetFileSize(File.ReadAllBytes(files[i])),
@@ -355,8 +364,6 @@ namespace ILRepack_GUI
                 }
             }
 
-            Other_Assembly_TreeView.ItemsSource = assemblyBindings;
-
             CheckMissingAssemblies();
         }
 
@@ -400,6 +407,12 @@ namespace ILRepack_GUI
             #region Build Arguments
 
             string mergeArguments = $"/out:\"{fileSaveLocation}\"";
+
+            //Resolve paths
+            foreach (string path in resolvePaths)
+            {
+                mergeArguments += $" /lib:\"{path}\"";
+            }
 
             //Target kind
             mergeArguments += $" /target:\"{targetKind}\"";
@@ -459,6 +472,7 @@ namespace ILRepack_GUI
                 {
                     FileName = "cmd.exe",
                     Arguments = $"/C ilrepack {mergeArguments}",
+                    WorkingDirectory = tempFolderLocation,
                     UseShellExecute = false,
                     RedirectStandardOutput = true,
                     RedirectStandardError = true,
@@ -538,6 +552,24 @@ namespace ILRepack_GUI
         }
 
 
+        private void Add_Resolve_Paths_Click(object sender, RoutedEventArgs e)
+        {
+            ResolvePathWindow window = new ResolvePathWindow(resolvePaths);
+            window.ShowDialog();
+
+            resolvePaths = new List<string>();
+
+            //Update resolve paths
+            foreach(Path_Binding binding in window.pathBindings)
+            {
+                if (Directory.Exists(binding.Path))
+                {
+                    resolvePaths.Add(binding.Path);
+                }
+            }
+        }
+
+
         private void Sign_Key_Checked(object sender, RoutedEventArgs e)
         {
             OpenFileDialog dialog = new OpenFileDialog()
@@ -582,8 +614,10 @@ namespace ILRepack_GUI
         {
             foreach(Assembly_Binding binding in assemblyBindings)
             {
-                binding.Dependencies = GetMissingAssemblies(binding.Path);
+                binding.Dependencies = GetMissingAssemblies(binding.OriginalPath, tempFolderLocation);
             }
+
+            Other_Assembly_TreeView.ItemsSource = assemblyBindings;
         }
     }
 
