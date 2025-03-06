@@ -31,12 +31,11 @@ namespace ILRepack_GUI
         public List<string> resolvePaths;
 
         //TODO: Fix dependency assembly issue
-        //TODO: Move help icon to bottom of window
 
         public MainWindow()
         {
             InitializeComponent();
-
+            
             mainAssemblyFile = "";
 
             keyfilePath = "";
@@ -53,9 +52,6 @@ namespace ILRepack_GUI
 
             tempFolderLocation = Directory.GetCurrentDirectory() + "\\ILRepack_GUI_temp";
 
-            AppDomain.CurrentDomain.ProcessExit += CurrentDomain_ProcessExit;
-
-
             if (Directory.Exists(tempFolderLocation))
             {
                 Directory.Delete(tempFolderLocation, true);
@@ -64,6 +60,48 @@ namespace ILRepack_GUI
             DirectoryInfo info = Directory.CreateDirectory(tempFolderLocation);
 
             info.Attributes = FileAttributes.Normal;
+
+
+            //Test to make sure ILRepack is installed
+            Process testProcess = new Process()
+            {
+                StartInfo = new ProcessStartInfo()
+                {
+                    FileName = "cmd.exe",
+                    Arguments = $"/C ilrepack",
+                    WorkingDirectory = tempFolderLocation,
+                    UseShellExecute = false,
+                    RedirectStandardError = true,
+                    CreateNoWindow = true,
+                }
+            };
+
+            testProcess.Start();
+
+            string err = testProcess.StandardError.ReadToEnd();
+
+            testProcess.WaitForExit();
+
+            if (!string.IsNullOrEmpty(err))
+            {
+                if(err.Contains("is not recognized"))
+                {
+                    string text = "ILRepack is not installed on this machine! Run the following command in the terminal to install it:\n\ndotnet tool " +
+                        "install -g dotnet-ilrepack\n\nOnce you have run this, open this program again.";
+                    MessageBox.Show(text, "ILRepack GUI", MessageBoxButton.OK, MessageBoxImage.Error);
+
+                    Process.GetCurrentProcess().Kill();
+                }
+                else
+                {
+                    string text = "An unknown error has occured: " + err;
+                    MessageBox.Show(text, "ILRepack GUI", MessageBoxButton.OK, MessageBoxImage.Error);
+
+                    Process.GetCurrentProcess().Kill();
+                }
+            }
+
+            AppDomain.CurrentDomain.ProcessExit += CurrentDomain_ProcessExit;
         }
 
         private void CurrentDomain_ProcessExit(object? sender, EventArgs e)
@@ -614,7 +652,16 @@ namespace ILRepack_GUI
         {
             foreach(Assembly_Binding binding in assemblyBindings)
             {
-                binding.Dependencies = GetMissingAssemblies(binding.OriginalPath, tempFolderLocation);
+                List<string>? missingDeps = GetMissingAssemblies(binding.OriginalPath, tempFolderLocation);
+
+                if(missingDeps != null)
+                {
+                    //Check if the dependency is in one of the resolve paths
+                }
+                else
+                {
+
+                }
             }
 
             Other_Assembly_TreeView.ItemsSource = assemblyBindings;
