@@ -502,8 +502,6 @@ namespace ILRepack_GUI
 
             #endregion Build Arguments
 
-            //File.WriteAllText(Environment.GetFolderPath(Environment.SpecialFolder.Desktop) + $"\\ILRepack Arguments.txt", $"ilrepack {mergeArguments}");
-
             Process mergeProcess = new Process()
             {
                 StartInfo = new ProcessStartInfo()
@@ -605,6 +603,8 @@ namespace ILRepack_GUI
                     resolvePaths.Add(binding.Path);
                 }
             }
+
+            CheckMissingAssemblies();
         }
 
 
@@ -654,14 +654,29 @@ namespace ILRepack_GUI
             {
                 List<string>? missingDeps = GetMissingAssemblies(binding.OriginalPath, tempFolderLocation);
 
+                List<string>? stillMissingDeps = missingDeps;
+
                 if(missingDeps != null)
                 {
                     //Check if the dependency is in one of the resolve paths
-                }
-                else
-                {
+                    foreach(string dependency in missingDeps)
+                    {
+                        foreach (string path in resolvePaths)
+                        {
+                            string[] filesInResolvePath = Directory.GetFiles(path, "*.dll");
 
+                            for (int i = 0; i < filesInResolvePath.Length; i++)
+                            {
+                                if (filesInResolvePath.Contains(dependency))
+                                {
+                                    stillMissingDeps?.Remove(dependency);
+                                }
+                            }
+                        }
+                    }
                 }
+
+                binding.Dependencies = stillMissingDeps;
             }
 
             Other_Assembly_TreeView.ItemsSource = assemblyBindings;
