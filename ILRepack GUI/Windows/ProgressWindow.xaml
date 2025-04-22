@@ -1,0 +1,15 @@
+﻿<Window x:Class="ILRepack_GUI.Windows.ProgressWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:ILRepack_GUI.Windows"
+        mc:Ignorable="d" WindowStartupLocation="CenterScreen" ResizeMode="NoResize"
+        Title="ILRepack GUI" Height="150" Width="300">
+    <Grid>
+        <StackPanel Orientation="Vertical" VerticalAlignment="Center" HorizontalAlignment="Center">
+            <TextBlock Name="Header_Text" HorizontalAlignment="Center" Margin="4" />
+            <ProgressBar Name="Progress_Bar" Height="25" Width="200" IsIndeterminate="True" Margin="4" />
+        </StackPanel>
+    </Grid>
+</Window>

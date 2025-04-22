@@ -1,0 +1,44 @@
+﻿<Window x:Class="ILRepack_GUI.Windows.InfoWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:ILRepack_GUI.Windows"
+        mc:Ignorable="d" WindowStartupLocation="CenterOwner"
+        Title="Info" Height="200" Width="350" ResizeMode="NoResize" Icon="/ILRepack GUI;component/Resources/folder_32x32.bmp">
+    <StackPanel Orientation="Vertical" Margin="10" HorizontalAlignment="Center">
+        <TextBlock Text="ILRepack GUI" FontWeight="Bold" FontSize="24" HorizontalAlignment="Center" Margin="4,4,4,15" />
+
+        <StackPanel Orientation="Horizontal">
+            <Label>
+                <TextBlock Text="i" FontSize="20" FontFamily="Webdings" />
+            </Label>
+            <TextBlock VerticalAlignment="Center" >
+            <Run>Version </Run>
+            <Run Name="Version_Text" />
+            <Run> created by </Run>
+            <Hyperlink NavigateUri="https://chrisdentremont.net" RequestNavigate="Link_RequestNavigate">Chris D'Entremont</Hyperlink>
+            </TextBlock>
+        </StackPanel>
+
+
+        <StackPanel Orientation="Horizontal">
+            <Label>
+                <TextBlock Text="ü" FontSize="20" FontFamily="Webdings" />
+            </Label>
+            <TextBlock VerticalAlignment="Center" >
+            <Hyperlink NavigateUri="https://github.com/gluck/il-repack" RequestNavigate="Link_RequestNavigate">ILRepack GitHub Repository</Hyperlink>
+            </TextBlock>
+        </StackPanel>
+
+        
+        <StackPanel Orientation="Horizontal">
+            <Label>
+                <TextBlock Text="!" FontSize="20" FontFamily="Webdings" />
+            </Label>
+            <TextBlock VerticalAlignment="Center" >
+            <Hyperlink NavigateUri="https://github.com/chrisdentremont/ILRepack-GUI/issues" RequestNavigate="Link_RequestNavigate">Report a bug</Hyperlink>
+            </TextBlock>
+        </StackPanel>
+    </StackPanel>
+</Window>

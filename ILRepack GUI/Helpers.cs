@@ -92,6 +92,10 @@ namespace ILRepack_GUI
                     dependencies = value;
 
                     OnPropertyChanged("Dependencies");
+
+                    OnPropertyChanged("DependencyText");
+
+                    OnPropertyChanged("ToolTip");
                 }
             }
 
@@ -102,20 +106,29 @@ namespace ILRepack_GUI
                 {
                     string[] split = FileName.Split('.');
 
+                    return string.Join(".", split.Take(split.Length - 1));
+                }
+            }
+
+
+            public string DependencyText
+            {
+                get
+                {
                     if(Dependencies != null)
                     {
                         if(Dependencies.Count > 0)
                         {
-                            return string.Join(".", split.Take(split.Length - 1)) + " ⚠";
+                            return $"\t ⚠ Missing dependencies";
                         }
                         else
                         {
-                            return string.Join(".", split.Take(split.Length - 1));
+                            return " ";
                         }
                     }
                     else
                     {
-                        return string.Join(".", split.Take(split.Length - 1));
+                        return " ";
                     }
                 }
             }
@@ -133,35 +146,12 @@ namespace ILRepack_GUI
                         }
                         else
                         {
-                            return null;
+                            return "No missing dependencies";
                         }
                     }
                     else
                     {
-                        return null;
-                    }
-                }
-            }
-
-
-            public SolidColorBrush ForegroundColor
-            {
-                get
-                {
-                    if(Dependencies != null)
-                    {
-                        if(Dependencies.Count > 0)
-                        {
-                            return new SolidColorBrush(Colors.Red);
-                        }
-                        else
-                        {
-                            return new SolidColorBrush(Colors.Black);
-                        }
-                    }
-                    else
-                    {
-                        return new SolidColorBrush(Colors.Black);
+                        return "No missing dependencies";
                     }
                 }
             }

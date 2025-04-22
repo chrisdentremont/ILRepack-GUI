@@ -3,7 +3,7 @@
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
     <TargetFramework>net8.0-windows</TargetFramework>
-    <Version>1.1.0</Version>
+    <Version>0.1.0</Version>
     <RootNamespace>ILRepack_GUI</RootNamespace>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
@@ -11,6 +11,8 @@
     <StartupObject>ILRepack_GUI.App</StartupObject>
     <Platforms>AnyCPU;x64</Platforms>
     <Title>ILRepack GUI</Title>
+    <AssemblyVersion>0.1.0</AssemblyVersion>
+    <FileVersion>0.1.0</FileVersion>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">

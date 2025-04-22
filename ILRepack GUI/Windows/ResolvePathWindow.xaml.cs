@@ -7,7 +7,7 @@ using System.Windows.Media;
 
 using static ILRepack_GUI.Helpers;
 
-namespace ILRepack_GUI
+namespace ILRepack_GUI.Windows
 {
     /// <summary>
     /// Interaction logic for ResolvePathWindow.xaml

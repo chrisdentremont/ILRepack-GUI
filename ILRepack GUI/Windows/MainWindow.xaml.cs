@@ -9,15 +9,18 @@ using System.Windows.Data;
 using static ILRepack_GUI.Helpers;
 
 using Microsoft.Win32;
+using System.Windows.Threading;
 
 
-namespace ILRepack_GUI 
+namespace ILRepack_GUI.Windows
 {
     /// <summary>
     /// Interaction logic for MainWindow.xaml
     /// </summary>
     public partial class MainWindow : Window
     {
+        private Dispatcher? progressDispatcher = null;
+
         string mainAssemblyFile;
 
         public ObservableCollection<Assembly_Binding> assemblyBindings;
@@ -86,11 +89,52 @@ namespace ILRepack_GUI
             {
                 if(err.Contains("is not recognized"))
                 {
-                    string text = "ILRepack is not installed on this machine! Run the following command in the terminal to install it:\n\ndotnet tool " +
-                        "install -g dotnet-ilrepack\n\nOnce you have run this, open this program again.";
-                    MessageBox.Show(text, "ILRepack GUI", MessageBoxButton.OK, MessageBoxImage.Error);
+                    //string text = "ILRepack is not installed on this machine! Run the following command in the terminal to install it:\n\ndotnet tool " +
+                    //    "install -g dotnet-ilrepack\n\nOnce you have run this, open this program again.";
+                    //MessageBox.Show(text, "ILRepack GUI", MessageBoxButton.OK, MessageBoxImage.Error);
 
-                    Process.GetCurrentProcess().Kill();
+                    string text = "ILRepack is not installed on this machine! Would you like to install it?";
+                    MessageBoxResult result = MessageBox.Show(text, "ILRepack GUI", MessageBoxButton.YesNo, MessageBoxImage.Exclamation, MessageBoxResult.No);
+
+                    if(result == MessageBoxResult.Yes)
+                    {
+                        Process installProcess = new Process()
+                        {
+                            StartInfo = new ProcessStartInfo()
+                            {
+                                FileName = "cmd.exe",
+                                Arguments = "/C dotnet tool install -g dotnet-ilrepack",
+                                WorkingDirectory = tempFolderLocation,
+                                UseShellExecute = false,
+                                RedirectStandardError = true,
+                                CreateNoWindow = true,
+                            }
+                        };
+
+                        ShowProgressBar("Installing ilrepack...");
+
+                        installProcess.Start();
+
+                        installProcess.WaitForExit();
+
+                        progressDispatcher?.BeginInvokeShutdown(DispatcherPriority.Send);
+                        progressDispatcher = null;
+
+                        string error = installProcess.StandardError.ReadToEnd();
+
+                        if (!string.IsNullOrEmpty(error))
+                        {
+                            string errorText = $"Something went wrong when trying to install ilrepack: \n\n {error}";
+                            MessageBox.Show(errorText, "ILRepack GUI", MessageBoxButton.OK, MessageBoxImage.Error);
+
+                            Process.GetCurrentProcess().Kill();
+                        }
+                    }
+                    else
+                    {
+
+                        Process.GetCurrentProcess().Kill();
+                    }
                 }
                 else
                 {
@@ -143,6 +187,10 @@ namespace ILRepack_GUI
                     mainAssemblyFile = fileName;
 
                     Main_Assembly_Text_Display.Text = fileName;
+
+                    FileVersionInfo versionInfo = FileVersionInfo.GetVersionInfo(openFileDialog.FileName);
+
+                    Version_TextBox.Text = versionInfo.FileVersion;
 
                     using (FileStream stream = File.Create(tempFolderLocation + $"\\{fileName}"))
                     {
@@ -214,6 +262,10 @@ namespace ILRepack_GUI
                             mainAssemblyFile = fileName;
 
                             Main_Assembly_Text_Display.Text = fileName;
+
+                            FileVersionInfo versionInfo = FileVersionInfo.GetVersionInfo(files[0]);
+
+                            Version_TextBox.Text = versionInfo.FileVersion;
 
                             using (FileStream stream = File.Create(tempFolderLocation + $"\\{fileName}"))
                             {
@@ -410,7 +462,15 @@ namespace ILRepack_GUI
         {
             if (assemblyBindings.Count == 0)
             {
-                MessageBox.Show("No assemblies are selected to merge!", "EMD Assembly Merger", MessageBoxButton.OK, MessageBoxImage.Exclamation);
+                MessageBox.Show("No assemblies are selected to merge!", "ILRepack GUI", MessageBoxButton.OK, MessageBoxImage.Error);
+
+                return;
+            }
+
+            //Check for valid version
+            if (!Version.TryParse(Version_TextBox.Text, out Version? version))
+            {
+                MessageBox.Show("The entered version is not a valid version format.", "ILRepack GUI", MessageBoxButton.OK, MessageBoxImage.Error);
 
                 return;
             }
@@ -445,6 +505,9 @@ namespace ILRepack_GUI
             #region Build Arguments
 
             string mergeArguments = $"/out:\"{fileSaveLocation}\"";
+
+            //File version
+            mergeArguments += $" /ver:{Version_TextBox.Text}";
 
             //Resolve paths
             foreach (string path in resolvePaths)
@@ -492,6 +555,12 @@ namespace ILRepack_GUI
                 mergeArguments += $" /keyfile:\"{keyfilePath}\"";
             }
 
+            //Allow Zero PeKind
+            if(Settings_Check_Zero_Pekind.IsChecked == true)
+            {
+                mergeArguments += " /zeropekind";
+            }
+
             //Add main assembly first
             mergeArguments += $" \"{mainAssemblyFile}\"";
 
@@ -516,12 +585,17 @@ namespace ILRepack_GUI
                 }
             };
 
+            ShowProgressBar("Merging assemblies...");
+
             mergeProcess.Start();
 
             string stan = mergeProcess.StandardOutput.ReadToEnd();
             string err = mergeProcess.StandardError.ReadToEnd();
 
             mergeProcess.WaitForExit();
+
+            progressDispatcher?.BeginInvokeShutdown(DispatcherPriority.Send);
+            progressDispatcher = null;
 
             bool hasError = false;
 
@@ -531,16 +605,17 @@ namespace ILRepack_GUI
 
                 string date = DateTime.Now.ToString().Replace('/', '_').Replace(' ', '_').Replace(':', '_');
 
-                File.WriteAllText(@"crash-reports\crash_report_" + date + ".txt", err);
+                string crashPath = @"crash-reports\crash_report_" + date + ".txt";
+                File.WriteAllText(crashPath, err);
 
-                string text = "Something went wrong while merging the assemblies! Check the crash report for details.";
+                string text = $"Something went wrong while merging the assemblies!\n\n A crash report has been saved at \"{crashPath}\".";
                 MessageBox.Show(text, "ILRepack GUI", MessageBoxButton.OK, MessageBoxImage.Error);
 
                 hasError = true;
             }
             else
             {
-                string text = "The assemblies were merged!";
+                string text = $"The assemblies were merged!\n\n The new file can be found at {fileSaveLocation}.";
                 MessageBox.Show(text, "ILRepack GUI", MessageBoxButton.OK, MessageBoxImage.Information);
             }
 
@@ -608,6 +683,14 @@ namespace ILRepack_GUI
         }
 
 
+        private void Info_Button_Click(object sender, RoutedEventArgs e)
+        {
+            InfoWindow window = new InfoWindow();
+            window.Owner = this;
+            window.Show();
+        }
+
+
         private void Sign_Key_Checked(object sender, RoutedEventArgs e)
         {
             OpenFileDialog dialog = new OpenFileDialog()
@@ -654,23 +737,27 @@ namespace ILRepack_GUI
             {
                 List<string>? missingDeps = GetMissingAssemblies(binding.OriginalPath, tempFolderLocation);
 
-                List<string>? stillMissingDeps = missingDeps;
-
-                if(missingDeps != null)
+                if(missingDeps == null)
                 {
-                    //Check if the dependency is in one of the resolve paths
-                    foreach(string dependency in missingDeps)
-                    {
-                        foreach (string path in resolvePaths)
-                        {
-                            string[] filesInResolvePath = Directory.GetFiles(path, "*.dll");
+                    continue;
+                }
 
-                            for (int i = 0; i < filesInResolvePath.Length; i++)
+                List<string> stillMissingDeps = new List<string>(missingDeps);
+
+                //Check if the dependency is in one of the resolve paths
+                foreach (string dependency in missingDeps)
+                {
+                    foreach (string path in resolvePaths)
+                    {
+                        string[] filesInResolvePath = Directory.GetFiles(path, "*.dll");
+
+                        for (int i = 0; i < filesInResolvePath.Length; i++)
+                        {
+                            string dllName = filesInResolvePath[i].Substring(filesInResolvePath[i].LastIndexOf('\\') + 1).Split('.')[0];
+
+                            if(dllName == dependency)
                             {
-                                if (filesInResolvePath.Contains(dependency))
-                                {
-                                    stillMissingDeps?.Remove(dependency);
-                                }
+                                stillMissingDeps?.Remove(dependency);
                             }
                         }
                     }
@@ -681,7 +768,27 @@ namespace ILRepack_GUI
 
             Other_Assembly_TreeView.ItemsSource = assemblyBindings;
         }
+
+        public void ShowProgressBar(string header)
+        {
+            Thread newWindowThread = new Thread(new ParameterizedThreadStart(StartProgressBarThread));
+            newWindowThread.SetApartmentState(ApartmentState.STA);
+            newWindowThread.IsBackground = true;
+            newWindowThread.Start(header);
+        }
+
+
+        public void StartProgressBarThread(object info)
+        {
+            ProgressWindow window = new ProgressWindow(info as string);
+            window.Show();
+            progressDispatcher = window.Dispatcher;
+            Dispatcher.Run();
+
+        }
     }
+
+
 
     #region ListView Width Converters
 
